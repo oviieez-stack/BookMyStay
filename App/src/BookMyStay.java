@@ -1,62 +1,73 @@
 import java.util.*;
 
-class Reservation {
-    String reservationId;
+class BookingRequest {
     String guestName;
-    String roomType;
-    double cost;
 
-    Reservation(String reservationId, String guestName, String roomType, double cost) {
-        this.reservationId = reservationId;
+    BookingRequest(String guestName) {
         this.guestName = guestName;
-        this.roomType = roomType;
-        this.cost = cost;
-    }
-
-    public String toString() {
-        return reservationId + " | " + guestName + " | " + roomType + " | Rs." + cost;
     }
 }
 
-class BookingHistory {
-    private List<Reservation> history = new ArrayList<>();
+class Inventory {
+    private int rooms;
 
-    public void addReservation(Reservation r) {
-        history.add(r);
+    Inventory(int rooms) {
+        this.rooms = rooms;
     }
 
-    public List<Reservation> getAllReservations() {
-        return history;
-    }
-}
-
-class BookingReportService {
-    public void generateReport(List<Reservation> reservations) {
-        double total = 0;
-
-        System.out.println("Booking History:");
-        for (Reservation r : reservations) {
-            System.out.println(r);
-            total += r.cost;
+    public synchronized boolean allocateRoom(String guestName) {
+        if (rooms > 0) {
+            System.out.println(guestName + " booked a room");
+            rooms--;
+            return true;
+        } else {
+            System.out.println(guestName + " failed (No rooms)");
+            return false;
         }
+    }
+}
 
-        System.out.println("Total Revenue: Rs." + total);
-        System.out.println("Total Bookings: " + reservations.size());
+class BookingProcessor implements Runnable {
+    private Queue<BookingRequest> queue;
+    private Inventory inventory;
+
+    BookingProcessor(Queue<BookingRequest> queue, Inventory inventory) {
+        this.queue = queue;
+        this.inventory = inventory;
+    }
+
+    public void run() {
+        while (true) {
+            BookingRequest request;
+
+            synchronized (queue) {
+                if (queue.isEmpty()) {
+                    break;
+                }
+                request = queue.poll();
+            }
+
+            inventory.allocateRoom(request.guestName);
+        }
     }
 }
 
 public class BookMyStay {
     public static void main(String[] args) {
 
-        BookingHistory history = new BookingHistory();
-        BookingReportService reportService = new BookingReportService();
+        Queue<BookingRequest> queue = new LinkedList<>();
+        queue.add(new BookingRequest("Dinesh"));
+        queue.add(new BookingRequest("Oviya"));
+        queue.add(new BookingRequest("Arun"));
+        queue.add(new BookingRequest("Kiran"));
+        queue.add(new BookingRequest("Meena"));
 
-        history.addReservation(new Reservation("RES101", "Dinesh", "Deluxe", 2000));
-        history.addReservation(new Reservation("RES102", "Oviya", "Suite", 3500));
-        history.addReservation(new Reservation("RES103", "Arun", "Standard", 1500));
+        Inventory inventory = new Inventory(3);
 
-        List<Reservation> all = history.getAllReservations();
+        Thread t1 = new Thread(new BookingProcessor(queue, inventory));
+        Thread t2 = new Thread(new BookingProcessor(queue, inventory));
 
-        reportService.generateReport(all);
+        t1.start();
+        t2.start();
     }
 }
