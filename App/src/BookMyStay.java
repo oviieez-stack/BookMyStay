@@ -1,78 +1,47 @@
-import java.io.*;
 import java.util.*;
 
-class Reservation implements Serializable {
-    String reservationId;
-    String guestName;
-    double cost;
-
-    Reservation(String reservationId, String guestName, double cost) {
-        this.reservationId = reservationId;
-        this.guestName = guestName;
-        this.cost = cost;
-    }
-
-    public String toString() {
-        return reservationId + " | " + guestName + " | Rs." + cost;
+class InvalidBookingException extends Exception {
+    InvalidBookingException(String message) {
+        super(message);
     }
 }
 
-class SystemState implements Serializable {
-    List<Reservation> bookings;
-    int availableRooms;
+class Inventory {
+    private Map<String, Integer> rooms = new HashMap<>();
 
-    SystemState(List<Reservation> bookings, int availableRooms) {
-        this.bookings = bookings;
-        this.availableRooms = availableRooms;
-    }
-}
-
-class PersistenceService {
-
-    public void save(SystemState state, String file) {
-        try {
-            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(file));
-            out.writeObject(state);
-            out.close();
-            System.out.println("State saved successfully");
-        } catch (Exception e) {
-            System.out.println("Error saving state");
-        }
+    Inventory() {
+        rooms.put("Standard", 2);
+        rooms.put("Deluxe", 1);
+        rooms.put("Suite", 0);
     }
 
-    public SystemState load(String file) {
-        try {
-            ObjectInputStream in = new ObjectInputStream(new FileInputStream(file));
-            SystemState state = (SystemState) in.readObject();
-            in.close();
-            System.out.println("State loaded successfully");
-            return state;
-        } catch (Exception e) {
-            System.out.println("No previous state found. Starting fresh.");
-            return new SystemState(new ArrayList<>(), 5);
+    public void bookRoom(String type) throws InvalidBookingException {
+        if (!rooms.containsKey(type)) {
+            throw new InvalidBookingException("Invalid room type");
         }
+
+        if (rooms.get(type) <= 0) {
+            throw new InvalidBookingException("No rooms available for " + type);
+        }
+
+        rooms.put(type, rooms.get(type) - 1);
+        System.out.println("Room booked successfully: " + type);
     }
 }
 
 public class BookMyStay {
     public static void main(String[] args) {
 
-        PersistenceService service = new PersistenceService();
-        String file = "data.ser";
+        Inventory inventory = new Inventory();
 
-        SystemState state = service.load(file);
+        String[] requests = {"Deluxe", "Suite", "Premium", "Standard", "Standard"};
 
-        state.bookings.add(new Reservation("RES201", "Oviya", 3000));
-        state.bookings.add(new Reservation("RES202", "Dinesh", 2500));
-        state.availableRooms -= 2;
-
-        System.out.println("Current Bookings:");
-        for (Reservation r : state.bookings) {
-            System.out.println(r);
+        for (String req : requests) {
+            try {
+                inventory.bookRoom(req);
+            } catch (InvalidBookingException e) {
+                System.out.println("Error: " + e.getMessage());
+            }
         }
-
-        System.out.println("Available Rooms: " + state.availableRooms);
-
-        service.save(state, file);
     }
 }
